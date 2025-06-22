@@ -1,6 +1,6 @@
 ## Parsing The Bits
 Now that we have our virtual network interface all set up and it receives bits of data the next step in our journey of implementing TCP is to parse out the packets from the bytes of data we receive. By default, alongside the packets sent and received from the virtual network interface, an additional 4 bytes of data is prepended to the packet. The [Tun/TAP documentation section 3.2](https://www.kernel.org/doc/Documentation/networking/tuntap.txt) informs us of the structure of the data we receive. The first 2 bytes are the flags that can give us more information about the packet we received, for example, the "TUN_PKT_STRIP" which is set by the kernel to signal the userspace program that the packet was truncated because the buffer was too small. The next two bytes is the proto field which specifies the IP version of the protocol. After the first 4 meta bytes, the rest of the data is the Raw protocol. 
-So we shall modify our code to add the flag and proto bytes. To do that we use the `u16::from_be_bytes` method to read the first 2 bytes of the packet and get us a human-readable value of the flag. Remember network order is big endian hence us using the from big endian bytes method.
+So we shall modify our code to add the flag and proto bytes. To do that we use the `u16::from_be_bytes` method to read the first 2 bytes of the packet and get us a human-readable value of the flag. Remember network order is **big endian** hence us using the from big endian bytes method.
 Replace the content of your loop with the following
 ```rust
 loop { 
@@ -73,6 +73,8 @@ match etherparse::Ipv4HeaderSlice::from_slice(&buf[4..nbytes]) {
 }
 
 ```
+nc 192.168.0.2 80 是 `netcat` 命令用于像192.168.0.2:80 端口建立一个tcp 链接
+nc 还可以用来监视链接建立细节(-v verbose), 已经用来模拟http 请求等、支持处理udp
 On running the code above & using a TCP client to ping our application, `nc 192.168.0.2 80`  you should see the TCP packets being received alongside the destination address, the source address, and the protocol.
 ### References
 - [Corresponding Code](https://github.com/jonhoo/rust-tcp/commit/b7c28eecf7c7f20a38a1e0d48f91fc2b703b0d47#diff-42cb6807ad74b3e201c5a7ca98b911c5fa08380e942be6e4ac5807f8377f87fc)

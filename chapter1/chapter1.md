@@ -100,10 +100,13 @@ For efficiency, we can script the entire process:
 #!/bin/bash
 PKG_NAME=tcp
 cargo b --release
+# 提供网络处理权限而不需要使用sudo,  精细控制
 sudo setcap cap_net_admin=eip ./target/release/$PKG_NAME
 ./target/release/$PKG_NAME & 
 pid=$!
+# 配置启动一个虚拟网卡，tun0, 处理ip数据， tap 面相以太网(MAC)
 sudo ip addr add 192.168.0.1/24 dev tun0
+# 启动这个tun0
 sudo ip link set up dev tun0
 trap "kill $pid" INT TERM
 wait $pid

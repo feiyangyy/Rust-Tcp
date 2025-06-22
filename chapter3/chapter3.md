@@ -2,22 +2,25 @@
 
 We have made quite some progress in our project - setting us up to easily tackle the TCP protocol implementation. We are going to be discussing some of the behaviors of TCP & its various states. 
 
-In a multitasking OS, various applications—like web servers, email clients, and more—need simultaneous network access. To distinguish between these different network activities, each application binds itself to a unique port number. A combination of this port number, along with the host's IP address, forms(at a very basic level) what is known as a "socket" - a kernel-managed abstraction. To establish a connection, a pair of these sockets is used—one for the sending machine and one for the receiving machine. A socket pair is unique and effectively identifies a connection.
+In a multitasking OS, various applications—like web servers, email clients, and more—need simultaneous network access. To distinguish between these different network activities, each application binds itself to a unique port number(端口作用). A combination of this port number, along with the host's IP address, forms(at a very basic level) what is known as a "socket" - a kernel-managed abstraction. To establish a connection, a pair of these sockets is used—one for the sending machine and one for the receiving machine. A socket pair is unique and effectively identifies a connection. (IP:端口 对)
 
 -- <br>
-A very important data structure associated with TCP connection endpoints Transmission Control Blocks (TCBs). TCBs serve as the central repository for all the parameters and variables that pertain to an established or pending connection. Containing everything from socket addresses and port numbers to sequence numbers and window sizes, the TCB is the cornerstone of TCP's operational logic.
+A very important data structure associated with TCP connection endpoints Transmission Control Blocks (TCBs). TCBs serve as the central repository for all the parameters and variables that pertain(关于) to an established or pending connection. Containing everything from socket addresses and port numbers to sequence numbers and window sizes, the TCB is the cornerstone of TCP's operational logic. 
 
-Each TCB is an encapsulation of the TCP state for a particular connection. It stores details that are essential for the "reliability" in "Transmission Control Protocol," such as unacknowledged data, flow control parameters, and the next expected sequence number. In essence, the TCB functions as the control center for TCP operations, maintaining and updating the state of the connection in real time. The TCB serves as the kernel's ledger for a TCP connection, storing everything from port numbers and IP addresses to flow control parameters and pending data. Essentially, the TCB is the repository for all the metrics and variables that a TCP stack needs to maintain to handle a connection reliably and effectively.
-
--- <br>
-Now, consider a machine involved in multiple TCP connections. How does it differentiate between them & discern which incoming packet belongs to which connection? This is where the concept of the 'connection quad' becomes crucial. A connection quad consists of a tuple with four elements: source IP address, source port, destination IP address, and destination port. This tuple serves as a unique identifier for each active TCP connection. The brilliance of the connection quad lies in its utility as a unique key for indexing the hash table of TCBs. When a packet arrives, the TCP stack uses the connection quad to look up the corresponding TCB and, by extension, the relevant state machine. This ensures that the packet is processed according to the correct set of rules and variables, as defined by the state machine encapsulated in that TCB. TCP creates and maintains a hash table of transmission control blocks (TCBs) to store data for each TCP connection. A control block is attached to the table for each active connection. The control block is deleted shortly after the connection is closed.
+Each TCB is an encapsulation（封装） of the TCP state for a particular connection. It stores details that are essential for the "reliability" in "Transmission Control Protocol," such as unacknowledged data, flow control parameters, and the next expected sequence number. In essence, the TCB functions as the control center for TCP operations, maintaining and updating the state of the connection in real time. The TCB serves as the kernel's ledger for a TCP connection, storing everything from port numbers and IP addresses to flow control parameters and pending data. Essentially, the TCB is the repository for all the metrics and variables that a TCP stack needs to maintain to handle a connection reliably and effectively.
 
 -- <br>
-A connection progresses through a series of states during its lifetime.  The states are:  LISTEN, SYN-SENT, SYN-RECEIVED, ESTABLISHED, FIN-WAIT-1, FIN-WAIT-2, CLOSE-WAIT, CLOSING, LAST-ACK, TIME-WAIT, and the fictional state CLOSED.  These states, embedded in the Transmission Control Block (TCB), serve as critical markers that guide the connection's behavior at each juncture. From the initial handshake to data transfer and eventual teardown, the state of a connection is meticulously tracked to facilitate reliable and ordered data exchange.
+Now, consider a machine involved in multiple TCP connections. How does it differentiate between them & discern which incoming packet belongs to which connection? This is where the concept of the 'connection quad'（连接四元素） becomes crucial. A connection quad consists of a tuple with four elements: source IP address, source port, destination IP address, and destination port(源ip:port 目的ip:port). This tuple serves as a unique identifier for each active TCP connection. The brilliance of the connection quad lies in its utility as a unique key(唯一标识，且用于定位TCB表) for indexing the hash table of TCBs. When a packet arrives, the TCP stack uses the connection quad to look up the corresponding TCB and, by extension, the relevant state machine. This ensures that the packet is processed according to the correct set of rules and variables, as defined by the state machine encapsulated in that TCB. TCP creates and maintains a hash table of transmission control blocks (TCBs) to store data for each TCP connection. A control block is attached to the table for each active connection. The control block is deleted shortly after the connection is closed.
+因此存在内核资源：
+1. 传输控制块: TCB => 每个链接一个
+2. 控制块hash表
 
-The initial states—`CLOSED` and `LISTEN`—serve as the connection's genesis points. When in the `CLOSED` state, no Transmission Control Block (TCB) exists, essentially making the connection non-existent. It's akin to an uninitialized variable; any packets received for this state are disregarded. Contrast this with the `LISTEN` state, where the system is actively waiting for incoming connection requests. Once a `SYN` packet is received, the state transitions to `SYN-RECEIVED`, initiating the TCP handshake. The connection reaches a steady `ESTABLISHED` state post-handshake, where most of the data exchange occurs.
+-- <br>
+A connection progresses through a series of states during its lifetime.  The states are:  LISTEN, SYN-SENT, SYN-RECEIVED, ESTABLISHED, FIN-WAIT-1, FIN-WAIT-2, CLOSE-WAIT, CLOSING, LAST-ACK, TIME-WAIT, and the fictional state CLOSED.  (状态值) These states, embedded in the Transmission Control Block (TCB), serve as critical markers that guide the connection's behavior at each juncture(连接、时刻、档口). From the initial handshake to data transfer and eventual teardown, the state of a connection is meticulously tracked to facilitate（缓和、减轻） reliable and ordered data exchange.
 
-As the connection concludes, it cascades through a series of `FIN-WAIT` and `CLOSE-WAIT` states, ultimately reaching `TIME-WAIT` or `LAST-ACK` depending on the teardown initiation. These terminal states ensure that any lingering packets in the network are accounted for, providing a graceful connection teardown. The system finally reverts to the `CLOSED` state, freeing the TCB and associated resources for future connections.
+The initial states—`CLOSED` and `LISTEN`—serve as the connection's genesis（起始） points. When in the `CLOSED` state, no Transmission Control Block (TCB) exists, essentially making the connection non-existent. It's akin（类似） to an uninitialized variable; any packets received for this state are disregarded. Contrast this with the `LISTEN` state, where the system is actively waiting for incoming connection requests（等待链接）. Once a `SYN` packet is received, the state transitions to `SYN-RECEIVED`, initiating the TCP handshake（握手）. The connection reaches a steady `ESTABLISHED` state post-handshake（建立）, where most of the data exchange occurs.
+
+As the connection concludes（结束）, it cascades through a series of `FIN-WAIT` and `CLOSE-WAIT` states, ultimately reaching `TIME-WAIT` or `LAST-ACK` depending on the teardown initiation. These terminal states ensure that any lingering（残留） packets in the network are accounted for, providing a graceful（优雅的） connection teardown. The system finally reverts to the `CLOSED` state, freeing the TCB and associated resources for future connections.
 
 ```
                     +---------+ ---------\      active OPEN
@@ -95,7 +98,7 @@ impl Default for State {
 impl State {
 // Method to handle incoming TCP packets. 
 // 'iph' contains the parsed IPv4 header, 'tcph' contains the parsed TCP header, and 'data' contains the TCP payload. 
-pub fn on_packet<'a>( 
+pub fn on_packet<'a>( // 'a = keep alive during the whole function or packet.
 	&mut self, 
 	iph: etherparse::Ipv4HeaderSlice<'a>, 
 	tcph: etherparse::TcpHeaderSlice<'a>, 
@@ -162,13 +165,18 @@ fn main() -> io::Result<()> {
 			src: (src, tcph.source_port()), 
 			dst: (dst, tcph.destination_port()), 
 			}) { 
-			Entry::Occupied(mut c) => { 
-			c.get_mut().on_packet(&mut nic, iph, tcph, &buf[datai..nbytes])?; 
-			} 
-			Entry::Vacant(e) => { 
-			if let Some(c) = tcp::Connection::on_accept(&mut nic, iph, tcph, &buf[datai..nbytes])? { 
-			e.insert(c); 
-			} } } }
+                    Entry::Occupied(mut c) => { 
+                        // 处理数据
+                    c.get_mut().on_packet(&mut nic, iph, tcph, &buf[datai..nbytes])?; 
+                    } 
+                    Entry::Vacant(e) => { 
+                            // 创建并添加
+                        if let Some(c) = tcp::Connection::on_accept(&mut nic, iph, tcph, &buf[datai..nbytes])? { 
+                        e.insert(c); 
+                        } 
+                    } 
+                } 
+                }
                     }
                     Err(e) => {
                         // Handle TCP header parsing errors.
@@ -188,9 +196,9 @@ fn main() -> io::Result<()> {
 
 In the code, we establish the foundation of our TCP stack by defining the key data structures and functions needed for a TCP connection. Central to this architecture is the `Quad` struct, which serves as the unique identifier for each entry in a `HashMap` named `connections`. This HashMap acts as an in-memory registry for TCP connections that are either active or in the process of being established. Each entry in the HashMap consists of an instance of `Quad` mapped to its current TCP Connection. This state is represented by an enumeration type, defined in `tcp.rs`, embodying one of four TCP connection states: `Closed`, `Listen`, `SynRcvd`, or `Estab`.
 
-We introduce two primary methods for packet handling: `on_accept` and `on_packet`. The `on_accept` method is responsible for handling incoming packets that initiate new connections. Conversely, the `on_packet` method manages packets for existing connections. Both methods log essential information such as source and destination IP addresses and ports, as well as the payload length. Finally, in `main.rs`, we make use of pattern matching to differentiate between new and existing connections, based on the incoming packets.
+We introduce two primary methods for packet handling: `on_accept` and `on_packet`. The `on_accept` method is responsible for handling incoming packets that initiate（初始化） new connections. Conversely(相反), the `on_packet` method manages packets for existing connections. Both methods log essential information such as source and destination IP addresses and ports, as well as the payload length. Finally, in `main.rs`, we make use of pattern matching to differentiate between new and existing connections, based on the incoming packets.
 
-We're making steady progress. Thus far, we've ensured that we're receiving the correct IPv4 packets, and we've implemented a mechanism to associate incoming packets with their respective states, keyed by a unique connection quad. Our next objective is to focus on implementing TCP handshakes, a critical step for facilitating a dependable connection between a client and a server. The client initiates this process by sending a SYN (Synchronize) packet, while the server listens for these incoming requests. This handshake is a three-stage procedure involving a SYN packet, followed by a SYN-ACK (Synchronize-Acknowledgment) packet, and concluding with an ACK (Acknowledgment) packet. During this phase, we'll enhance the `accept` method to manage these distinct types of handshake packets.
+We're making steady progress. Thus far, we've ensured that we're receiving the correct IPv4 packets, and we've implemented a mechanism to associate incoming packets with their respective states, keyed by a unique connection quad. Our next objective is to focus on implementing TCP handshakes, a critical step for facilitating a dependable connection between a client and a server. The client initiates this process by sending a SYN (Synchronize) packet, while the server listens for these incoming requests. This handshake is a three-stage procedure involving a SYN packet , followed by a SYN-ACK (Synchronize-Acknowledgment) packet, and concluding with an ACK (Acknowledgment) packet. During this phase, we'll enhance the `accept` method to manage these distinct types of handshake packets.
 ```Rust
 // main.rs
 // Required imports
